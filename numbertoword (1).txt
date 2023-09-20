@@ -1,0 +1,142 @@
+public class OpportunityPIController {
+    public Id userId {
+        get;
+        set;
+    }
+    public String oppRecordID {
+        get;
+        set;
+    }
+    public List <Line_Item__c> lstOfOpportunityLineItems {
+        get;
+        set;
+    }
+    
+    Public String Curr_to_WordInr {
+        get;
+        set;
+    }
+    
+    
+    public OpportunityPIController(ApexPages.StandardController stdController){
+        
+        // pageName = ApexPages.currentPage().getUrl().substringBetween('apex/', '?');
+        
+        userId = UserInfo.getUserId();
+        
+        this.oppRecordID = stdController.getId();
+        
+        //objUser = [Select Id, Name, UserRoleId, Title from user where Id =: userId];
+        
+        this.oppRecordID = stdController.getId();
+        Opportunity__c  objOpportunity = [Select Id ,Rate__c,Account_Name__r.GSTIN__c,Quantity_Kg__c,Party_Order_No__c,Total_Amount__c from Opportunity__c where Id =: oppRecordID limit 1];
+        lstOfOpportunityLineItems = new List <Line_Item__c > ([select Id,Name,Quantity_Kg__c,Rate__c,Total_Amount__c,Opportunity__c,Product__r.Name FROM Line_Item__c  where Opportunity__c =: oppRecordID]);
+        system.debug(oppRecordID);
+        
+        NumberToWord numtext = new NumberToWord();
+        Curr_to_WordInr = numtext.WordToINR(Integer.valueOf(objOpportunity.Total_Amount__c));
+        
+        
+        
+    }
+    public with sharing class NumberToWord {  
+        
+        String[] to_19 = new string[]{ 'Zero', 'One',  'Two', 'Three', 'Four',  'Five',  'Six',  
+            'Seven', 'Eight', 'Nine', 'Ten',  'Eleven', 'Twelve', 'Thirteen',  
+            'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen' };  
+                String[] tens = new string[]{ 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'};  
+                    String[] denom = new string[]{ '',  
+                        'Thousand',   'Million',     'Billion',    'Trillion',    'Quadrillion',  
+                        'Quintillion', 'Sixtillion',   'Septillion',  'Octillion',   'Nonillion',  
+                        'Decillion',  'Undecillion',   'Duodecillion', 'Tredecillion',  'Quattuordecillion',  
+                        'Sixdecillion', 'Septendecillion', 'Octodecillion', 'Novemdecillion', 'Vigintillion' };  
+                            // convert a value < 100 to English.    
+                            public String convert_nn(integer val) {  
+                                if (val < 20)  
+                                    return to_19[val];  
+                                if(val == 100)  
+                                    return 'One Hundred';  
+                                for (integer v = 0; v < tens.size(); v++) {  
+                                    String dcap = tens[v];  
+                                    integer dval = 20 + 10 * v;  
+                                    if (dval + 10 > val) {  
+                                        if (Math.Mod(val,10) != 0)  
+                                            return dcap + ' ' + to_19[Math.Mod(val,10)];  
+                                        return dcap;  
+                                    }      
+                                }  
+                                return 'Should never get here, less than 100 failure';  
+                            }  
+        // convert a value < 1000 to english, special cased because it is the level that kicks   
+        // off the < 100 special case. The rest are more general. This also allows you to  
+        // get strings in the form of "forty-five hundred" if called directly.  
+        public String convert_nnn(integer val) {  
+            String word = '';  
+            integer rem = val / 100;  
+            integer mod = Math.mod(val,100);  
+            if (rem > 0) {  
+                word = to_19[rem] + ' hundred';  
+                if (mod > 0) {  
+                    word += ' ';  
+                }  
+            }  
+            if (mod > 0) {  
+                word += convert_nn(mod);  
+            }  
+            return word;  
+        }  
+        public  String english_number(long val) {  
+            if (val < 100) {  
+                return convert_nn(val.intValue());  
+            }  
+            if (val < 1000) {  
+                return convert_nnn(val.intValue());  
+            }  
+            for (integer v = 0; v < denom.size(); v++) {  
+                integer didx = v - 1;  
+                integer dval = (integer)Math.pow(1000, v);  
+                if (dval > val) {  
+                    integer mod = (integer)Math.pow(1000, didx);  
+                    integer l = (integer) val / mod;  
+                    integer r = (integer) val - (l * mod);  
+                    String ret = convert_nnn(l) + ' ' + denom[didx];  
+                    if (r > 0) {  
+                        ret += ', ' + english_number(r);  
+                    }  
+                    return ret;  
+                }  
+            }  
+            return 'Should never get here, bottomed out in english_number';  
+        }
+        
+        
+        
+        public String WordToINR(long i) 
+        {
+            String[] units = new String[]{' Zero ',' One ',' Two ',' Three ',' Four ',' Five ',' Six ',' Seven ',' Eight ',' Nine ',' Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '};
+                
+                String[] Rupeetens = new String[]{'','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'};
+                    
+                    if( i < 20) return units[integer.valueOf(i)];
+            
+            if( i < 100) return Rupeetens[integer.valueOf(i)/10] + ((math.mod(i , 10) > 0)? '' + WordToINR(math.mod(i , 10)):'');
+            
+            if( i < 1000) return units[integer.valueOf(i)/100] + ' Hundred ' + ((math.mod(i , 100) > 0)?' ' + WordToINR(math.mod(i , 100)):'');
+            
+            if( i < 10000) return units[integer.valueOf(i)/1000] + ' Thousand ' + ((math.mod(i , 1000) > 0)?' ' + WordToINR(math.mod(i , 1000)):'');
+            
+            if( i < 100000) return WordToINR(i / 1000) + ' Thousand ' + ((math.mod(i , 1000) > 0)? '' + WordToINR(math.mod(i ,1000)):'') ;
+            
+            if( i < 1000000) return units[integer.valueOf(i)/100000] + ' Lakh ' + ((math.mod(i , 100000) > 0)? '' + WordToINR(math.mod(i ,100000)):'') ;
+            
+            if( i < 10000000) return WordToINR(i / 100000) + ' Lakh ' + ((math.mod(i , 100000) > 0)? '' + WordToINR(math.mod(i ,100000)):'') ;
+            
+            if( i < 100000000) return units[integer.valueOf(i)/10000000] + ' Crore ' + ((math.mod(i , 10000000) > 0)? '' + WordToINR(math.mod(i , 10000000)):'') ;
+            
+            if( i < 1000000000) return WordToINR(i / 10000000) + 'Crore ' + ((math.mod(i , 10000000) > 0)? '' + WordToINR(math.mod(i , 10000000)):'') ;
+            
+            return 'Sorry, Too Big';
+            
+        }  
+    }
+}
